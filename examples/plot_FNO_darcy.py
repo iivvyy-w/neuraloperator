@@ -27,13 +27,25 @@ device = 'cpu'
 
 # %%
 # Let's load the small Darcy-flow dataset. 
+
 train_loader, test_loaders, data_processor = load_darcy_flow_small(
         n_train=1000, batch_size=32, 
         test_resolutions=[16, 32], n_tests=[100, 50],
         test_batch_sizes=[32, 32],
 )
 data_processor = data_processor.to(device)
-
+"""
+n_train : int
+    number of train instances
+n_tests : List[int]
+    number of test instances per test dataset
+batch_size : int
+    batch size of training set
+train_resolution : int
+    resolution of data for training set
+test_resolutions : List[int], optional
+    resolution of data for testing sets, by default [16,32]
+"""
 
 # %%
 # We create a simple FNO model
@@ -151,6 +163,7 @@ for index in range(3):
 fig.suptitle('Inputs, ground-truth output and prediction (16x16).', y=0.98)
 plt.tight_layout()
 fig.show()
+plt.savefig('FNOdarcy0')
 
 
 # %%
@@ -198,6 +211,7 @@ for index in range(3):
 fig.suptitle('Inputs, ground-truth output and prediction (32x32).', y=0.98)
 plt.tight_layout()
 fig.show()
+plt.savefig('FNOdarcy')
 
 # %%
 # We only trained the model on data at a resolution of 16x16, and with no modifications 
