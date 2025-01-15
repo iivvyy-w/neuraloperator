@@ -384,6 +384,7 @@ class FNO(BaseModel, name='FNO'):
         x = self.projection(x)
         
         # new code added
+        """
         if boundary:
             input_shape = x.shape
             boundary_mask = torch.zeros(1, 1, input_shape[2], input_shape[3])
@@ -393,7 +394,7 @@ class FNO(BaseModel, name='FNO'):
             boundary_mask[:, :, :, -1] = 1
             boundary_mask = boundary_mask.repeat(1, self.out_channels, 1, 1)
             x = x * (1 - boundary_mask)
-
+        """
         return x
 
     @property
