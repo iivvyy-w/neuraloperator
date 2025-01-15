@@ -330,7 +330,7 @@ class FNO(BaseModel, name='FNO'):
         if self.complex_data:
             self.projection = ComplexValued(self.projection)
 
-    def forward(self, x, output_shape=None, **kwargs):
+    def forward(self, x, output_shape=None, boundary=True, **kwargs):
         """FNO's forward pass
         
         1. Applies optional positional encoding
@@ -382,6 +382,17 @@ class FNO(BaseModel, name='FNO'):
             x = self.domain_padding.unpad(x)
 
         x = self.projection(x)
+        
+        # new code added
+        if boundary:
+            input_shape = x.shape
+            boundary_mask = torch.zeros(1, 1, input_shape[2], input_shape[3])
+            boundary_mask[:, :, 0, :] = 1
+            boundary_mask[:, :, -1, :] = 1
+            boundary_mask[:, :, :, 0] = 1
+            boundary_mask[:, :, :, -1] = 1
+            boundary_mask = boundary_mask.repeat(1, self.out_channels, 1, 1)
+            x = x * (1 - boundary_mask)
 
         return x
 
