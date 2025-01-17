@@ -15,6 +15,10 @@ from ..layers.channel_mlp import ChannelMLP
 from ..layers.complex import ComplexValued
 from .base_model import BaseModel
 
+#
+from boundary_cond import ConstraintLayer, generate_constraint
+
+
 class FNO(BaseModel, name='FNO'):
     """N-Dimensional Fourier Neural Operator. The FNO learns a mapping between
     spaces of functions discretized over regular grids using Fourier convolutions, 
@@ -330,7 +334,11 @@ class FNO(BaseModel, name='FNO'):
         if self.complex_data:
             self.projection = ComplexValued(self.projection)
 
-    def forward(self, x, output_shape=None, boundary=True, **kwargs):
+        # add constraint layer
+        # A, b = generate_constraint(,out_channels)
+        # self.constraint_layer = ConstraintLayer(A, b)
+
+    def forward(self, x, output_shape=None, **kwargs):
         """FNO's forward pass
         
         1. Applies optional positional encoding
@@ -377,24 +385,16 @@ class FNO(BaseModel, name='FNO'):
 
         for layer_idx in range(self.n_layers):
             x = self.fno_blocks(x, layer_idx, output_shape=output_shape[layer_idx])
+        
+        A, b = generate_constraint(x.shape[2], x.shape[3], self.out_channels)
+        constraint_layer = ConstraintLayer(A, b)
+        x = constraint_layer(x)
 
         if self.domain_padding is not None:
             x = self.domain_padding.unpad(x)
 
         x = self.projection(x)
-        
-        # new code added
-        """
-        if boundary:
-            input_shape = x.shape
-            boundary_mask = torch.zeros(1, 1, input_shape[2], input_shape[3])
-            boundary_mask[:, :, 0, :] = 1
-            boundary_mask[:, :, -1, :] = 1
-            boundary_mask[:, :, :, 0] = 1
-            boundary_mask[:, :, :, -1] = 1
-            boundary_mask = boundary_mask.repeat(1, self.out_channels, 1, 1)
-            x = x * (1 - boundary_mask)
-        """
+
         return x
 
     @property
