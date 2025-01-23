@@ -392,6 +392,48 @@ class H1Loss(object):
             
         return diff
 
+    def h1_loss(self, y_pred, y, h=None):
+        """H1-norm loss
+
+        Parameters
+        ----------
+        y_pred : torch.Tensor
+            Inputs
+        y : torch.Tensor
+            Target outputs
+        h : float or list, optional
+            Grid spacing, by default None
+
+        Returns
+        -------
+        torch.Tensor
+            H1-norm loss
+        """
+
+        if h is None:
+            h = self.uniform_h(y_pred)
+        else:
+            if isinstance(h, float):
+                h = [h] * self.d
+
+        dict_pred, dict_target = self.compute_terms(y_pred, y, h)
+
+        # Compute the L2 norm of the function difference
+        l2_diff = torch.norm(dict_pred[0] - dict_target[0], p=2, dim=-1, keepdim=False) ** 2
+
+        # Compute the gradient difference norms
+        grad_diff = 0
+        for j in range(1, self.d + 1):
+            grad_diff += torch.norm(dict_pred[j] - dict_target[j], p=2, dim=-1, keepdim=False) ** 2
+
+        # Combine the base term and gradient terms to form the H1 loss
+        h1_loss_value = l2_diff + grad_diff
+
+        if self.reduce_dims is not None:
+            h1_loss_value = self.reduce_all(h1_loss_value).squeeze()
+
+        return h1_loss_value
+
     def __call__(self, y_pred, y, h=None, **kwargs):
         """
         Parameters
@@ -403,7 +445,7 @@ class H1Loss(object):
         h : float or list, optional
             normalization constant for reduction, by default None
         """
-        return self.rel(y_pred, y, h=h)
+        return self.h1_loss(y_pred, y, h=h)
 
 class PointwiseQuantileLoss(object):
     def __init__(self, alpha, reduce_dims = 0, reductions='sum'):

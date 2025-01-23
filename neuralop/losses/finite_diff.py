@@ -122,3 +122,34 @@ def central_diff_3d(x, h, fix_x_bnd=False, fix_y_bnd=False, fix_z_bnd=False):
         
     return dx, dy, dz
 
+
+
+
+def central_diff_1d(x, h, fix_x_bnd=False):
+    dx = (torch.roll(x, -1, dims=-1) - torch.roll(x, 1, dims=-1)) / (2.0 * h)
+
+    if fix_x_bnd:
+        # Smooth boundary derivative using weighted average
+        dx[..., 0] = (2 * (x[..., 1] - x[..., 0]) + (x[..., 2] - x[..., 0])) / (3.0 * h)
+        dx[..., -1] = (2 * (x[..., -1] - x[..., -2]) + (x[..., -1] - x[..., -3])) / (3.0 * h)
+
+    return dx
+
+def central_diff_2d(x, h, fix_x_bnd=False, fix_y_bnd=False):
+    if isinstance(h, float):
+        h = [h, h]
+
+    dx = (torch.roll(x, -1, dims=-2) - torch.roll(x, 1, dims=-2)) / (2.0 * h[0])
+    dy = (torch.roll(x, -1, dims=-1) - torch.roll(x, 1, dims=-1)) / (2.0 * h[1])
+
+    if fix_x_bnd:
+        # Smooth boundary derivative along x
+        dx[..., 0, :] = (2 * (x[..., 1, :] - x[..., 0, :]) + (x[..., 2, :] - x[..., 0, :])) / (3.0 * h[0])
+        dx[..., -1, :] = (2 * (x[..., -1, :] - x[..., -2, :]) + (x[..., -1, :] - x[..., -3, :])) / (3.0 * h[0])
+
+    if fix_y_bnd:
+        # Smooth boundary derivative along y
+        dy[..., :, 0] = (2 * (x[..., :, 1] - x[..., :, 0]) + (x[..., :, 2] - x[..., :, 0])) / (3.0 * h[1])
+        dy[..., :, -1] = (2 * (x[..., :, -1] - x[..., :, -2]) + (x[..., :, -1] - x[..., :, -3])) / (3.0 * h[1])
+
+    return dx, dy
