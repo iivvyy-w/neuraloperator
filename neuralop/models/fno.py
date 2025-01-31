@@ -16,7 +16,7 @@ from ..layers.complex import ComplexValued
 from .base_model import BaseModel
 
 #
-from boundary_cond import ConstraintLayer, generate_constraint
+from .boundary_cond import ConstraintLayer, generate_constraint0
 
 
 class FNO(BaseModel, name='FNO'):
