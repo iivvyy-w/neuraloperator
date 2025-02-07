@@ -14,6 +14,7 @@ from ..layers.fno_block import FNOBlocks
 from ..layers.channel_mlp import ChannelMLP
 from ..layers.complex import ComplexValued
 from .base_model import BaseModel
+from .boundary_cond import ConstraintLayer, generate_bc0
 
 class FNO(BaseModel, name='FNO'):
     """N-Dimensional Fourier Neural Operator. The FNO learns a mapping between
@@ -190,12 +191,16 @@ class FNO(BaseModel, name='FNO'):
         separable: bool=False,
         preactivation: bool=False,
         conv_module: nn.Module=SpectralConv,
+        constraint: bool=False,
+        constraint_type: str='zero',
         **kwargs
     ):
         
         super().__init__()
         self.n_dim = len(n_modes)
-        
+        self.constraint = constraint
+        self.constraint_type = constraint_type
+
         # n_modes is a special property - see the class' property for underlying mechanism
         # When updated, change should be reflected in fno blocks
         self._n_modes = n_modes
@@ -330,6 +335,7 @@ class FNO(BaseModel, name='FNO'):
         if self.complex_data:
             self.projection = ComplexValued(self.projection)
 
+
     def forward(self, x, output_shape=None, **kwargs):
         """FNO's forward pass
         
@@ -360,7 +366,7 @@ class FNO(BaseModel, name='FNO'):
 
             * If tuple list, specifies the exact output-shape of each FNO Block
         """
-
+        print("anything", flush=True)
         if output_shape is None:
             output_shape = [None]*self.n_layers
         elif isinstance(output_shape, tuple):
@@ -369,7 +375,7 @@ class FNO(BaseModel, name='FNO'):
         # append spatial pos embedding if set
         if self.positional_embedding is not None:
             x = self.positional_embedding(x)
-        
+
         x = self.lifting(x)
 
         if self.domain_padding is not None:
@@ -377,6 +383,11 @@ class FNO(BaseModel, name='FNO'):
 
         for layer_idx in range(self.n_layers):
             x = self.fno_blocks(x, layer_idx, output_shape=output_shape[layer_idx])
+        assert(self.constraint)
+        if self.constraint:
+            A, b = generate_bc0(int(x.shape[2]), int(x.shape[3]), self.out_channels)
+            constraint_layer = ConstraintLayer(A, b)
+            x = constraint_layer(x)
 
         if self.domain_padding is not None:
             x = self.domain_padding.unpad(x)

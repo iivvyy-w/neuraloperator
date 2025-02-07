@@ -24,6 +24,13 @@ from neuralop import LpLoss, H1Loss
 
 device = 'cpu'
 
+## Create a folder every time saving the figures
+import os
+import datetime
+import numpy as np
+timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+folder_name = f"FNO_DarcyFlow_{timestamp}"
+os.makedirs(folder_name, exist_ok=True)
 
 # %%
 # Let's load the small Darcy-flow dataset. 
@@ -42,7 +49,9 @@ model = FNO(n_modes=(16, 16),
              in_channels=1, 
              out_channels=1,
              hidden_channels=32, 
-             projection_channel_ratio=2)
+             projection_channel_ratio=2,
+             constraint=True,
+             constraint_type='zero')
 model = model.to(device)
 
 n_params = count_model_params(model)
@@ -151,7 +160,7 @@ for index in range(3):
 fig.suptitle('Inputs, ground-truth output and prediction (16x16).', y=0.98)
 plt.tight_layout()
 fig.show()
-
+fig.savefig(os.path.join(folder_name, "16.png"))
 
 # %%
 # .. zero_shot :
@@ -198,6 +207,7 @@ for index in range(3):
 fig.suptitle('Inputs, ground-truth output and prediction (32x32).', y=0.98)
 plt.tight_layout()
 fig.show()
+fig.savefig(os.path.join(folder_name, "32.png"))
 
 # %%
 # We only trained the model on data at a resolution of 16x16, and with no modifications 
