@@ -25,7 +25,6 @@ model = FNO(n_modes=(16, 16),
              constraint=False)
 print("Model instantiated!")
 x = torch.randn(1, 1, 10, 10)  # Example input
-
 try:
     output = model(x)
     print("Forward pass completed!")
@@ -39,7 +38,7 @@ model2 = FNO(n_modes=(16, 16),
              hidden_channels=16,
              constraint=True)
 try:
-    output2 = model(x)
+    output2 = model2(x)
     print("Forward pass completed!")
     print(output2)
 except Exception as e:
