@@ -169,7 +169,7 @@ def generate_bc0(height, width, channels):
 
 
 def neumann_linear(height, width, channels, alpha=0, beta=0, scale=1.0,
-                   direction='normal', function=):
+                   direction='normal'):
 
     n_boundary_points = 2 * (height + width) * channels - 4 * channels
     n_total_points = height * width * channels

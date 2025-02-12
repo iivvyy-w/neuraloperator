@@ -191,8 +191,8 @@ class FNO(BaseModel, name='FNO'):
         separable: bool=False,
         preactivation: bool=False,
         conv_module: nn.Module=SpectralConv,
-        constraint: bool=False,
-        constraint_type: str='zero',
+        constraint=True,
+        constraint_type='zero',
         **kwargs
     ):
         
@@ -383,8 +383,9 @@ class FNO(BaseModel, name='FNO'):
 
         for layer_idx in range(self.n_layers):
             x = self.fno_blocks(x, layer_idx, output_shape=output_shape[layer_idx])
-        assert(self.constraint)
+        print(self.constraint, flush=True)
         if self.constraint:
+            print("constraint", flush=True)
             A, b = generate_bc0(int(x.shape[2]), int(x.shape[3]), self.out_channels)
             constraint_layer = ConstraintLayer(A, b)
             x = constraint_layer(x)
