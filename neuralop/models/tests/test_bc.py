@@ -38,23 +38,6 @@ def test_backward(m):
     assert torch.allclose(grad_y, forward_grad_output, atol=1e-4), "Backward is not equivalent to Forward"
 
 
-"""
-@pytest.mark.parametrize('m', [20, 43, 76])
-def test_backward(m):
-    torch.manual_seed(m*3434)
-    batch_size = 5
-    p = 4
-    A = torch.randn(p, m, dtype=torch.double)
-    y = torch.randn(batch_size, m, dtype=torch.double, requires_grad=True)
-    b = torch.randn(batch_size, p, dtype=torch.double)
-    cl = ConstraintLayer(A, b)
-    y_star = cl.forward(y)
-    grad_output = torch.randn_like(y_star)
-    grad_y = torch.autograd.grad(y_star, y, grad_outputs=grad_output)[0]
-    forward_grad_output = cl.backward(grad_output)
-    assert torch.linalg.norm(grad_y - forward_grad_output) < 1e-5
-    """
-
 if __name__ == '__main__':
     import sys
     pytest.main(sys.argv)

@@ -14,7 +14,7 @@ from ..layers.fno_block import FNOBlocks
 from ..layers.channel_mlp import ChannelMLP
 from ..layers.complex import ComplexValued
 from .base_model import BaseModel
-from .boundary_cond import ConstraintLayer, generate_bc0
+from .boundary_cond import ConstraintLayer, generate_bc0, neumann
 
 class FNO(BaseModel, name='FNO'):
     """N-Dimensional Fourier Neural Operator. The FNO learns a mapping between
@@ -191,8 +191,11 @@ class FNO(BaseModel, name='FNO'):
         separable: bool=False,
         preactivation: bool=False,
         conv_module: nn.Module=SpectralConv,
-        constraint=True,
+        constraint=False,
         constraint_type='zero',
+        constraint_direction='normal',
+        constraint_which=[1, 1, 1, 1],
+        constraint_g=None,
         **kwargs
     ):
         
@@ -200,6 +203,10 @@ class FNO(BaseModel, name='FNO'):
         self.n_dim = len(n_modes)
         self.constraint = constraint
         self.constraint_type = constraint_type
+        self.constraint_dir = constraint_direction
+        self.constraint_which = constraint_which
+        if constraint_g is not None:
+            self.constraint_g = constraint_g
 
         # n_modes is a special property - see the class' property for underlying mechanism
         # When updated, change should be reflected in fno blocks
@@ -366,7 +373,7 @@ class FNO(BaseModel, name='FNO'):
 
             * If tuple list, specifies the exact output-shape of each FNO Block
         """
-        print("anything", flush=True)
+
         if output_shape is None:
             output_shape = [None]*self.n_layers
         elif isinstance(output_shape, tuple):
@@ -383,17 +390,27 @@ class FNO(BaseModel, name='FNO'):
 
         for layer_idx in range(self.n_layers):
             x = self.fno_blocks(x, layer_idx, output_shape=output_shape[layer_idx])
-        print(self.constraint, flush=True)
-        if self.constraint:
-            print("constraint", flush=True)
-            A, b = generate_bc0(int(x.shape[2]), int(x.shape[3]), self.out_channels)
-            constraint_layer = ConstraintLayer(A, b)
-            x = constraint_layer(x)
 
         if self.domain_padding is not None:
             x = self.domain_padding.unpad(x)
 
         x = self.projection(x)
+
+        if self.constraint:
+            p, q, m, n = x.shape
+            x0 = x.view(p, q, m*n)
+            if self.constraint_type == 'zero':
+                A, b = generate_bc0(p, q, int(m), int(n))
+
+            elif self.constraint_type == 'neumann':
+                A, b = neumann(x, self.constraint_g, direction=self.constraint_dir, pos=self.constraint_which)
+
+            constraint_layer = ConstraintLayer(A, b)
+            for i in range(q):
+                x_ = x0[:, i, :]
+                x_ = constraint_layer(x_)
+                x0[:, i, :] = x_
+            x = x0.view(p, q, m, n)
 
         return x
 
