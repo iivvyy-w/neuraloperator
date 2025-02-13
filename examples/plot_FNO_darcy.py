@@ -46,12 +46,15 @@ data_processor = data_processor.to(device)
 # We create a simple FNO model
 
 model = FNO(n_modes=(16, 16),
-             in_channels=1, 
-             out_channels=1,
-             hidden_channels=32, 
-             projection_channel_ratio=2,
-             constraint=True,
-             constraint_type='zero')
+            in_channels=1, 
+            out_channels=1,
+            hidden_channels=32, 
+            projection_channel_ratio=2,
+            constraint=True,
+            constraint_type='neumann',
+            constraint_direction='normal',
+            constraint_which=[0, 1, 0, 1],
+            constraint_g=0)
 model = model.to(device)
 
 n_params = count_model_params(model)
