@@ -168,13 +168,15 @@ def neumann(x, gx, direction='normal', pos=[1, 1, 1, 1]):
 
     constrained_points = set()
     row_idx = 0
+    hx = 1/width
+    hy = 1/height
     for b_idx, n_idx, x, y in zip(boundary_indices, neighbor_indices, 
                                   boundary_x_coords, boundary_y_coords):
         if b_idx in constrained_points:
             continue
         A[row_idx, n_idx] = 1
         A[row_idx, b_idx] = -1  # outward
-        b[row_idx] = gx(x, y)  # inputs are two int and output is one int
+        b[:, row_idx] = gx(hx*x, hy*y)  # inputs are two int and output is one int
         constrained_points.add(b_idx)
         row_idx += 1
     return A, b

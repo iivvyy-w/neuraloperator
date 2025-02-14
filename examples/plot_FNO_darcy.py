@@ -44,6 +44,9 @@ data_processor = data_processor.to(device)
 
 # %%
 # We create a simple FNO model
+def g_linear(a, b):
+    return torch.e**(-a*b)
+
 
 model = FNO(n_modes=(16, 16),
             in_channels=1, 
@@ -53,8 +56,8 @@ model = FNO(n_modes=(16, 16),
             constraint=True,
             constraint_type='neumann',
             constraint_direction='normal',
-            constraint_which=[0, 1, 0, 1],
-            constraint_g=0)
+            constraint_which=[1, 1, 1, 1],
+            constraint_g=g_linear)
 model = model.to(device)
 
 n_params = count_model_params(model)
