@@ -20,6 +20,9 @@ import neuralop.mpu.comm as comm
 from neuralop.losses import LpLoss
 from .training_state import load_training_state, save_training_state
 
+from torch.utils.data import DataLoader
+from .dataloader import BoundaryZeroDataset
+
 
 class Trainer:
     """
@@ -190,6 +193,16 @@ class Trainer:
                   f'         on resolutions {[name for name in test_loaders]}.')
             sys.stdout.flush()
         
+        train_errs = []
+        # change the ground truth boundary to zero if needed
+        if self.model.constraint:
+            modified_dataset = BoundaryZeroDataset(train_loader.dataset)
+            train_loader = DataLoader(modified_dataset,
+                                      batch_size=train_loader.batch_size,
+                                      pin_memory=train_loader.pin_memory,
+                                      persistent_workers=train_loader.persistent_workers)
+        true_norm = self.compute_ground_truth_norm(train_loader, con=self.model.constraint)
+
         for epoch in range(self.start_epoch, self.n_epochs):
             train_err, avg_loss, avg_lasso_loss, epoch_train_time =\
                   self.train_one_epoch(epoch, train_loader, training_loss)
@@ -199,7 +212,8 @@ class Trainer:
                 avg_lasso_loss=avg_lasso_loss,
                 epoch_train_time=epoch_train_time
             )
-            
+            train_errs.append(train_err/true_norm)
+
             if epoch % self.eval_interval == 0:
                 # evaluate and gather metrics across each loader in test_loaders
                 eval_metrics = self.evaluate_all(epoch=epoch,
@@ -218,7 +232,7 @@ class Trainer:
                 if epoch % self.save_every == 0:
                     self.checkpoint(save_dir)
 
-        return epoch_metrics
+        return epoch_metrics, train_errs
 
     def train_one_epoch(self, epoch, train_loader, training_loss):
         """train_one_epoch trains self.model on train_loader
@@ -624,4 +638,18 @@ class Trainer:
             if self.verbose:
                 print(f"[Rank 0]: saved training state to {save_dir}")
 
-       
+    def compute_ground_truth_norm(self, train_loader, con=False):
+        total_norm = 0.0
+        total_samples = 0
+        
+        for _, sample in enumerate(train_loader):
+            y_true = sample['y']  # Ensure it's on CPU for consistency
+            if con:
+                y_true[:, :, 0, :] = 0
+                y_true[:, :, -1, :] = 0
+                y_true[:, :, :, 0] = 0
+                y_true[:, :, :, -1] = 0
+            total_norm += torch.linalg.norm(y_true)  # Compute L2 norm
+            total_samples += y_true.shape[0]  # Count number of samples
+
+        return total_norm / total_samples  # Average over dataset
