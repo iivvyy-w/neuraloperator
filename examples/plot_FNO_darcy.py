@@ -28,6 +28,7 @@ device = 'cpu'
 import os
 import datetime
 import numpy as np
+from neuralop.models.errors import average_error
 timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 folder_name = f"FNO_DarcyFlow_{timestamp}"
 os.makedirs(folder_name, exist_ok=True)
@@ -44,8 +45,19 @@ data_processor = data_processor.to(device)
 
 # %%
 # We create a simple FNO model
-def g_linear(a, b):
-    return torch.e**(-a*b)
+
+# Record the parameters used to alter the parameters in the following training and testing
+constraint = False  # whether to apply constraint on the FNO
+constraint_type = 'zero'  # what kind of constraint to apply
+constraint_which = None  # on which side of the boundary to apply constraint
+constraint_g = None  # What is g(x) on the neumann problem
+x_32 = False  # whether to apply the zero boundary on given data for testing
+x_16 = False
+y_32 = False   # whether to set the boundary of ground truth to zero
+y_16 = False
+
+#def g_linear(a, b):
+#   return torch.e**(-a*b)
 
 
 model = FNO(n_modes=(16, 16),
@@ -53,11 +65,8 @@ model = FNO(n_modes=(16, 16),
             out_channels=1,
             hidden_channels=32, 
             projection_channel_ratio=2,
-            constraint=True,
-            constraint_type='neumann',
-            constraint_direction='normal',
-            constraint_which=[1, 1, 1, 1],
-            constraint_g=g_linear)
+            constraint=constraint,
+            constraint_type=constraint_type)
 model = model.to(device)
 
 n_params = count_model_params(model)
@@ -71,8 +80,8 @@ sys.stdout.flush()
 # %%
 #Create the optimizer
 optimizer = AdamW(model.parameters(), 
-                                lr=8e-3, 
-                                weight_decay=1e-4)
+                  lr=8e-3, 
+                  weight_decay=1e-4)
 scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=30)
 
 
@@ -168,6 +177,7 @@ plt.tight_layout()
 fig.show()
 fig.savefig(os.path.join(folder_name, "16.png"))
 
+error32 = average_error(test_samples, data_processor, model, x_0=x_16, y_0=y_16)
 # %%
 # .. zero_shot :
 # Zero-shot super-evaluation
@@ -215,6 +225,7 @@ plt.tight_layout()
 fig.show()
 fig.savefig(os.path.join(folder_name, "32.png"))
 
+error32 = average_error(test_samples, data_processor, model, x_0 = x_32, y_0=y_32)
 # %%
 # We only trained the model on data at a resolution of 16x16, and with no modifications 
 # or special prompting, we were able to perform inference on higher-resolution input data 
