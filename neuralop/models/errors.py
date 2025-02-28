@@ -21,8 +21,9 @@ def boundary_L2error(y, out):
     return torch.linalg.norm(boundary_out-boundary_y) / (torch.linalg.norm(boundary_y)+1e-8)
 
 
-def average_error(test_samples, data_processor, model, x_0 = False, y_0=False):
+def average_error(test_samples, data_processor, model, x_0=False, y_0=False):
     error = 0
+    total_error = 0
     N = len(test_samples)
     for index in range(N):
         data = test_samples[index]
@@ -42,6 +43,8 @@ def average_error(test_samples, data_processor, model, x_0 = False, y_0=False):
             y[:, :, :, 0] = 0
             y[:, :, :, -1] = 0
         error += boundary_L2error(y, out)
-    print('The relative L-2 error is', error/N)
-    return error/N
+        total_error += torch.linalg.norm(y-out)/(torch.linalg.norm(y)+1e-8)
+    print('The relative L-2 error on boundary is', error/N)
+    print('The relative L-2 error on the whole map is', total_error/N)
+    return error/N, total_error/N
 

@@ -18,15 +18,18 @@ class ConstraintFunction(torch.autograd.Function):
             v_star (torch.Tensor): Solution `v^*` of shape (batch_size, output_dim).
         """
         batch_size = y.shape[0]
-        input_dim = A.shape[1]
+        input_dim = y.shape[1]
         output_dim = A.shape[0]
 
         # Create the block matrix
         Id = 2 * torch.eye(input_dim, device=y.device, dtype=y.dtype)  # 2I
-        zero_block = torch.zeros((output_dim, output_dim), device=y.device, dtype=y.dtype)
-        top_block = torch.cat([Id, A.T], dim=1)
-        bottom_block = torch.cat([A, zero_block], dim=1)
-        block_matrix = torch.cat([top_block, bottom_block], dim=0)
+        if A.numel() == 0:
+            block_matrix = Id
+        else:
+            zero_block = torch.zeros((output_dim, output_dim), device=y.device, dtype=y.dtype)
+            top_block = torch.cat([Id, A.T], dim=1)
+            bottom_block = torch.cat([A, zero_block], dim=1)
+            block_matrix = torch.cat([top_block, bottom_block], dim=0)
 
         # Create the right-hand side vector
         rhs = torch.cat([2 * y, b], dim=1)  # Shape: (batch_size, input_dim + output_dim)
@@ -52,12 +55,20 @@ class ConstraintFunction(torch.autograd.Function):
         batch_size, input_dim = y_star.shape
         output_dim = A.shape[0]
 
+        if A.numel() == 0:
+            return grad_output, None, None
+        
         zero_block = torch.zeros((batch_size, output_dim), device=y_star.device, dtype=y_star.dtype)
         rhs_grad = torch.cat([grad_output, zero_block], dim=1)  # Shape: (batch_size, input_dim + output_dim)
         grad_solution = torch.linalg.solve(block_matrix.unsqueeze(0).expand(batch_size, -1, -1), rhs_grad.unsqueeze(-1))
         grad_y = grad_solution[:, :input_dim, 0]
+        """
+        AAT_inv = torch.linalg.inv(A @ A.T)  # (output_dim, output_dim)
+        J = torch.eye(input_dim, device=A.device) * 2 - A.T @ AAT_inv @ A  # (input_dim, input_dim)
 
-        return grad_y, None, None
+        grad_y = torch.linalg.solve(J, grad_output.T).T
+        """
+        return 2*grad_y, None, None
 
 
 class ConstraintLayer(nn.Module):
@@ -74,7 +85,7 @@ class ConstraintLayer(nn.Module):
         self.A = A
         self.b = b
         self.input_dim = A.shape[1]
-        self.output_dim = A.shape[0]
+        self.output_dim = b.shape[1]
 
     def forward(self, y):
         return ConstraintFunction.apply(y, self.A, self.b)
@@ -82,7 +93,9 @@ class ConstraintLayer(nn.Module):
 
 def generate_bc0(batch_size, channels, height, width):
     n_boundary_points = 2 * (height + width) * channels - 4 * channels
+    #n_boundary_points = 0
     n_total_points = height * width * channels
+    #n_total_points = 0
 
     A = torch.zeros((n_boundary_points, n_total_points))
     b = torch.zeros((batch_size, n_boundary_points))
@@ -96,9 +109,11 @@ def generate_bc0(batch_size, channels, height, width):
         boundary_indices.extend(offset + np.arange(width - 1, height * width, width))
 
     boundary_indices = list(set(boundary_indices))
-
+    
     for row_idx, col_idx in enumerate(boundary_indices):
         A[row_idx, col_idx] = 1
+    #scale = torch.linalg.norm(A)
+    
     return A, b
 
 

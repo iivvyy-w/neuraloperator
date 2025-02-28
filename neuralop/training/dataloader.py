@@ -1,5 +1,5 @@
 import torch
-
+#from neuralop.data.datasets import DarcyDataset
 
 class BoundaryZeroDataset(torch.utils.data.Dataset):
     def __init__(self, original_dataset):

@@ -65,20 +65,20 @@ model_constraint = FNO(n_modes=(16, 16),
 model_constraint = model_constraint.to(device)
 
 
-def training(model):
+def training(model, lr=8e-3):
     n_params = count_model_params(model)
     print(f'\nOur model has {n_params} parameters.')
     sys.stdout.flush()
 
-    optimizer = AdamW(model.parameters(), 
-                      lr=8e-3,
+    optimizer = AdamW(model.parameters(),
+                      lr=lr,
                       weight_decay=1e-4)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=30)
 
     l2loss = LpLoss(d=2, p=2)
     h1loss = H1Loss(d=2)
 
-    train_loss = h1loss
+    train_loss = l2loss
     eval_losses = {'h1': h1loss, 'l2': l2loss}
 
     print('\n### MODEL ###\n', model)
@@ -108,11 +108,11 @@ def training(model):
     return train_errs
 
 
-train_errs_un = training(model_unconstraint)
+#train_errs_un = training(model_unconstraint)
 train_errs_con = training(model_constraint)
 
 fig, ax = plt.subplots()
-ax.plot(train_errs_un, label="FNO")
+#ax.plot(train_errs_un, label="FNO")
 ax.plot(train_errs_con, label="FNO-CON")
 ax.set_yscale('log')
 ax.set_xlabel("Epoch")

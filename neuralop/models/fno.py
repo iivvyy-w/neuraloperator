@@ -406,13 +406,49 @@ class FNO(BaseModel, name='FNO'):
                 A, b = neumann(x, self.constraint_g, direction=self.constraint_dir, pos=self.constraint_which)
 
             constraint_layer = ConstraintLayer(A, b)
+            
+            #x_ = x0[:, i, :].clone().detach().requires_grad_(True)
             for i in range(q):
-                x_ = x0[:, i, :]
-                x_ = constraint_layer(x_)
-                x0[:, i, :] = x_
-            x = x0.view(p, q, m, n)
+                x_ = x0[:, i, :]#.clone().detach().requires_grad_(True)
+                new_x_ = constraint_layer(x_)
+                #new_x_.backward(torch.ones_like(new_x_), retain_graph=True)
+                #scale = torch.linalg.norm(x_.grad)
 
+                x0[:, i, :] = new_x_
+            """
+            grad_norms_before = []
+            grad_norms_after = []
+
+            for i in range(q):
+                x_ = x0[:, i, :].clone().detach().requires_grad_(True)  # Clone for gradient tracking
+                
+                # Compute gradient before constraint
+                out_before = x_.sum()  # Dummy operation to track gradient
+                out_before.backward(retain_graph=True)
+                grad_norm_before = torch.norm(x_.grad)
+                grad_norms_before.append(grad_norm_before.item())
+                x_.grad.zero_()  # Reset gradients for next computation
+
+                # Apply constraint layer
+                new_x_ = constraint_layer(x_)
+
+                # Compute gradient after constraint
+                out_after = new_x_.sum()
+                out_after.backward(retain_graph=True)
+                grad_norm_after = torch.norm(x_.grad)
+                grad_norms_after.append(grad_norm_after.item())
+
+                # Store modified values
+                x0[:, i, :] = new_x_.detach()  # Detach to avoid interfering with autograd`
+
+            
+            
+            print(f"Gradient norms before: {grad_norms_before}")
+            print(f"Gradient norms after: {grad_norms_after}")
+            """
+            x = x0.view(p, q, m, n)
         return x
+
 
     @property
     def n_modes(self):

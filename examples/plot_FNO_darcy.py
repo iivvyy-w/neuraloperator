@@ -47,7 +47,7 @@ data_processor = data_processor.to(device)
 # We create a simple FNO model
 
 # Record the parameters used to alter the parameters in the following training and testing
-constraint = False  # whether to apply constraint on the FNO
+constraint = True  # whether to apply constraint on the FNO
 constraint_type = 'zero'  # what kind of constraint to apply
 constraint_which = None  # on which side of the boundary to apply constraint
 constraint_g = None  # What is g(x) on the neumann problem
@@ -177,7 +177,7 @@ plt.tight_layout()
 fig.show()
 fig.savefig(os.path.join(folder_name, "16.png"))
 
-error32 = average_error(test_samples, data_processor, model, x_0=x_16, y_0=y_16)
+error16, total_error16 = average_error(test_samples, data_processor, model, x_0=x_16, y_0=y_16)
 # %%
 # .. zero_shot :
 # Zero-shot super-evaluation
@@ -225,7 +225,7 @@ plt.tight_layout()
 fig.show()
 fig.savefig(os.path.join(folder_name, "32.png"))
 
-error32 = average_error(test_samples, data_processor, model, x_0 = x_32, y_0=y_32)
+error32, total_error32 = average_error(test_samples, data_processor, model, x_0 = x_32, y_0=y_32)
 # %%
 # We only trained the model on data at a resolution of 16x16, and with no modifications 
 # or special prompting, we were able to perform inference on higher-resolution input data 

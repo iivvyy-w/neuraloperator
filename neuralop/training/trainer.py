@@ -195,14 +195,16 @@ class Trainer:
         
         train_errs = []
         # change the ground truth boundary to zero if needed
+        
         if self.model.constraint:
             modified_dataset = BoundaryZeroDataset(train_loader.dataset)
             train_loader = DataLoader(modified_dataset,
                                       batch_size=train_loader.batch_size,
                                       pin_memory=train_loader.pin_memory,
                                       persistent_workers=train_loader.persistent_workers)
+        
         true_norm = self.compute_ground_truth_norm(train_loader, con=self.model.constraint)
-
+        
         for epoch in range(self.start_epoch, self.n_epochs):
             train_err, avg_loss, avg_lasso_loss, epoch_train_time =\
                   self.train_one_epoch(epoch, train_loader, training_loss)
@@ -643,7 +645,7 @@ class Trainer:
         total_samples = 0
         
         for _, sample in enumerate(train_loader):
-            y_true = sample['y']  # Ensure it's on CPU for consistency
+            y_true = sample['y']
             if con:
                 y_true[:, :, 0, :] = 0
                 y_true[:, :, -1, :] = 0
