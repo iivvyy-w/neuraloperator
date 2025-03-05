@@ -430,7 +430,6 @@ class Trainer:
 
         if self.data_processor is not None:
             out, sample = self.data_processor.postprocess(out, sample)
-
         loss = 0.0
 
         if self.mixed_precision:

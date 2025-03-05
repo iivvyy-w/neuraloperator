@@ -167,7 +167,7 @@ class H1Loss(object):
     H1Loss provides the H1 Sobolev norm between
     two d-dimensional discretized functions
     """
-    def __init__(self, d=1, L=2*math.pi, reduce_dims=0, reductions='sum', fix_x_bnd=False, fix_y_bnd=False, fix_z_bnd=False):
+    def __init__(self, d=1, L=2*math.pi, reduce_dims=0, reductions='sum', fix_x_bnd=False, fix_y_bnd=False, fix_z_bnd=False, mask=False):
         """
 
         Parameters
@@ -218,6 +218,9 @@ class H1Loss(object):
             self.L = [L]*self.d
         else:
             self.L = L
+
+        #if mask is true, ignore the boundary error 
+        self.mask = mask
     
     @property
     def name(self):
@@ -375,8 +378,13 @@ class H1Loss(object):
         else:
             if isinstance(h, float):
                 h = [h]*self.d
-        
-        dict_x, dict_y = self.compute_terms(x, y, h)
+
+        if self.mask:
+            x_mask = x[:, :, 1:-1, 1:-1]
+            y_mask = y[:, :, 1:-1, 1:-1]
+            dict_x, dict_y = self.compute_terms(x_mask, y_mask, h)
+        else:
+            dict_x, dict_y = self.compute_terms(x, y, h)
 
         diff = torch.norm(dict_x[0] - dict_y[0], p=2, dim=-1, keepdim=False)**2
         ynorm = torch.norm(dict_y[0], p=2, dim=-1, keepdim=False)**2

@@ -65,7 +65,7 @@ model_constraint = FNO(n_modes=(16, 16),
 model_constraint = model_constraint.to(device)
 
 
-def training(model, lr=8e-3):
+def training(model, lr=8e-3, mask=False):
     n_params = count_model_params(model)
     print(f'\nOur model has {n_params} parameters.')
     sys.stdout.flush()
@@ -76,9 +76,9 @@ def training(model, lr=8e-3):
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=30)
 
     l2loss = LpLoss(d=2, p=2)
-    h1loss = H1Loss(d=2)
+    h1loss = H1Loss(d=2, mask=mask)
 
-    train_loss = l2loss
+    train_loss = h1loss
     eval_losses = {'h1': h1loss, 'l2': l2loss}
 
     print('\n### MODEL ###\n', model)
@@ -108,11 +108,11 @@ def training(model, lr=8e-3):
     return train_errs
 
 
-#train_errs_un = training(model_unconstraint)
-train_errs_con = training(model_constraint)
+train_errs_un = training(model_unconstraint)
+train_errs_con = training(model_constraint, mask=True)
 
 fig, ax = plt.subplots()
-#ax.plot(train_errs_un, label="FNO")
+ax.plot(train_errs_un, label="FNO")
 ax.plot(train_errs_con, label="FNO-CON")
 ax.set_yscale('log')
 ax.set_xlabel("Epoch")

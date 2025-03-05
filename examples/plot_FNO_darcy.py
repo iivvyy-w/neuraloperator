@@ -53,8 +53,8 @@ constraint_which = None  # on which side of the boundary to apply constraint
 constraint_g = None  # What is g(x) on the neumann problem
 x_32 = False  # whether to apply the zero boundary on given data for testing
 x_16 = False
-y_32 = False   # whether to set the boundary of ground truth to zero
-y_16 = False
+y_32 = True  # whether to set the boundary of ground truth to zero
+y_16 = True
 
 #def g_linear(a, b):
 #   return torch.e**(-a*b)
@@ -88,7 +88,7 @@ scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=30)
 # %%
 # Then create the losses
 l2loss = LpLoss(d=2, p=2)
-h1loss = H1Loss(d=2)
+h1loss = H1Loss(d=2, mask=True)
 
 train_loss = h1loss
 eval_losses={'h1': h1loss, 'l2': l2loss}
