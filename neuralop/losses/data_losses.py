@@ -383,6 +383,7 @@ class H1Loss(object):
             x_mask = x[:, :, 1:-1, 1:-1]
             y_mask = y[:, :, 1:-1, 1:-1]
             dict_x, dict_y = self.compute_terms(x_mask, y_mask, h)
+        ### The ideal case would be not using the mask!
         else:
             dict_x, dict_y = self.compute_terms(x, y, h)
 

@@ -109,7 +109,7 @@ def training(model, lr=8e-3, mask=False):
 
 
 train_errs_un = training(model_unconstraint)
-train_errs_con = training(model_constraint, mask=True)
+train_errs_con = training(model_constraint)
 
 fig, ax = plt.subplots()
 ax.plot(train_errs_un, label="FNO")

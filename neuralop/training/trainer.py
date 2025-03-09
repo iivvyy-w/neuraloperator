@@ -407,6 +407,7 @@ class Trainer:
         self.optimizer.zero_grad(set_to_none=True)
         if self.regularizer:
             self.regularizer.reset()
+        
         if self.data_processor is not None:
             sample = self.data_processor.preprocess(sample)
         else:
@@ -416,6 +417,8 @@ class Trainer:
                 for k, v in sample.items()
                 if torch.is_tensor(v)
             }
+        
+        sample = sample
 
         self.n_samples += sample["y"].shape[0]
 
@@ -427,9 +430,10 @@ class Trainer:
         
         if self.epoch == 0 and idx == 0 and self.verbose:
             print(f"Raw outputs of shape {out.shape}")
-
+        
         if self.data_processor is not None:
             out, sample = self.data_processor.postprocess(out, sample)
+        
         loss = 0.0
 
         if self.mixed_precision:
