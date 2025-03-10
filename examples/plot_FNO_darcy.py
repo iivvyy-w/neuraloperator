@@ -88,7 +88,7 @@ scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=30)
 # %%
 # Then create the losses
 l2loss = LpLoss(d=2, p=2)
-h1loss = H1Loss(d=2)
+h1loss = H1Loss(d=2) # mask should be false
 
 train_loss = h1loss
 eval_losses={'h1': h1loss, 'l2': l2loss}
@@ -149,7 +149,7 @@ for index in range(3):
     # Ground-truth
     y = data['y']
     # Model prediction
-    out = model(x.unsqueeze(0))
+    out = model(x.unsqueeze(0), data_processor=data_processor)
 
     ax = fig.add_subplot(3, 3, index*3 + 1)
     ax.imshow(x[0], cmap='gray')
@@ -177,7 +177,7 @@ plt.tight_layout()
 fig.show()
 fig.savefig(os.path.join(folder_name, "16.png"))
 
-error16, total_error16 = average_error(test_samples, data_processor, model, x_0=x_16, y_0=y_16)
+error16, total_error16 = average_error(test_samples, data_processor, model, y_0=y_16)
 # %%
 # .. zero_shot :
 # Zero-shot super-evaluation
@@ -197,7 +197,7 @@ for index in range(3):
     # Ground-truth
     y = data['y']
     # Model prediction
-    out = model(x.unsqueeze(0))
+    out = model(x.unsqueeze(0), data_processor=data_processor)
 
     ax = fig.add_subplot(3, 3, index*3 + 1)
     ax.imshow(x[0], cmap='gray')
@@ -225,7 +225,7 @@ plt.tight_layout()
 fig.show()
 fig.savefig(os.path.join(folder_name, "32.png"))
 
-error32, total_error32 = average_error(test_samples, data_processor, model, x_0 = x_32, y_0=y_32)
+error32, total_error32 = average_error(test_samples, data_processor, model, y_0=y_32)
 # %%
 # We only trained the model on data at a resolution of 16x16, and with no modifications 
 # or special prompting, we were able to perform inference on higher-resolution input data 

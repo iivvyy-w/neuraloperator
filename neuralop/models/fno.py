@@ -201,6 +201,7 @@ class FNO(BaseModel, name='FNO'):
         
         super().__init__()
         self.n_dim = len(n_modes)
+
         self.constraint = constraint
         self.constraint_type = constraint_type
         self.constraint_dir = constraint_direction
@@ -343,7 +344,7 @@ class FNO(BaseModel, name='FNO'):
             self.projection = ComplexValued(self.projection)
 
 
-    def forward(self, x, output_shape=None, **kwargs):
+    def forward(self, x, output_shape=None, data_processor=None, **kwargs):
         """FNO's forward pass
         
         1. Applies optional positional encoding
@@ -373,6 +374,7 @@ class FNO(BaseModel, name='FNO'):
 
             * If tuple list, specifies the exact output-shape of each FNO Block
         """
+        # data_processor is used when there is constraint to apply.
 
         if output_shape is None:
             output_shape = [None]*self.n_layers
@@ -397,6 +399,9 @@ class FNO(BaseModel, name='FNO'):
         x = self.projection(x)
 
         if self.constraint:
+            if data_processor == None:
+                raise TypeError("To apply constraint on original data need denormalization.")
+            x = data_processor.out_normalizer.inverse_transform(x)
             p, q, m, n = x.shape
             x0 = x.view(p, q, m*n)
             if self.constraint_type == 'zero':
@@ -406,45 +411,16 @@ class FNO(BaseModel, name='FNO'):
                 A, b = neumann(x, self.constraint_g, direction=self.constraint_dir, pos=self.constraint_which)
 
             constraint_layer = ConstraintLayer(A, b)
-            
-            #x_ = x0[:, i, :].clone().detach().requires_grad_(True)
-            for i in range(q):
-                x_ = x0[:, i, :]  #.clone().detach().requires_grad_(True)
-                new_x_ = constraint_layer(x_)
-                #new_x_.backward(torch.ones_like(new_x_), retain_graph=True)
-                #scale = torch.linalg.norm(x_.grad)
 
+            for i in range(q):
+                x_ = x0[:, i, :]
+                new_x_ = constraint_layer(x_)
                 x0[:, i, :] = new_x_
-            """
-            grad_norms_before = []
-            grad_norms_after = []
 
-            for i in range(q):
-                x_ = x0[:, i, :].clone().detach().requires_grad_(True)  # Clone for gradient tracking
-                # Compute gradient before constraint
-                out_before = x_.sum()  # Dummy operation to track gradient
-                out_before.backward(retain_graph=True)
-                grad_norm_before = torch.norm(x_.grad)
-                grad_norms_before.append(grad_norm_before.item())
-                x_.grad.zero_()  # Reset gradients for next computation
-
-                # Apply constraint layer
-                new_x_ = constraint_layer(x_)
-
-                # Compute gradient after constraint
-                out_after = new_x_.sum()
-                out_after.backward(retain_graph=True)
-                grad_norm_after = torch.norm(x_.grad)
-                grad_norms_after.append(grad_norm_after.item())
-                
-                x0[:, i, :] = new_x_.detach()  # Detach to avoid interfering with autograd`
-            
-            print(f"Gradient norms before: {grad_norms_before}")
-            print(f"Gradient norms after: {grad_norms_after}")
-            """
             x = x0.view(p, q, m, n)
-        return x
+            x = data_processor.out_normalizer.transform(x)
 
+        return x
 
     @property
     def n_modes(self):

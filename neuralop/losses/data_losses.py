@@ -378,14 +378,14 @@ class H1Loss(object):
         else:
             if isinstance(h, float):
                 h = [h]*self.d
-
+        """
         if self.mask:
             x_mask = x[:, :, 1:-1, 1:-1]
             y_mask = y[:, :, 1:-1, 1:-1]
             dict_x, dict_y = self.compute_terms(x_mask, y_mask, h)
         ### The ideal case would be not using the mask!
-        else:
-            dict_x, dict_y = self.compute_terms(x, y, h)
+        else:"""
+        dict_x, dict_y = self.compute_terms(x, y, h)
 
         diff = torch.norm(dict_x[0] - dict_y[0], p=2, dim=-1, keepdim=False)**2
         ynorm = torch.norm(dict_y[0], p=2, dim=-1, keepdim=False)**2

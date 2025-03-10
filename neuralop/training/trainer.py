@@ -197,11 +197,12 @@ class Trainer:
         # change the ground truth boundary to zero if needed
         
         if self.model.constraint:
-            modified_dataset = BoundaryZeroDataset(train_loader.dataset)
-            train_loader = DataLoader(modified_dataset,
-                                      batch_size=train_loader.batch_size,
-                                      pin_memory=train_loader.pin_memory,
-                                      persistent_workers=train_loader.persistent_workers)
+            if self.model.constraint_type == 'zero':
+                modified_dataset = BoundaryZeroDataset(train_loader.dataset)
+                train_loader = DataLoader(modified_dataset,
+                                          batch_size=train_loader.batch_size,
+                                          pin_memory=train_loader.pin_memory,
+                                          persistent_workers=train_loader.persistent_workers)
         
         true_norm = self.compute_ground_truth_norm(train_loader, con=self.model.constraint)
         
@@ -424,9 +425,9 @@ class Trainer:
 
         if self.mixed_precision:
             with torch.autocast(device_type=self.autocast_device_type):
-                out = self.model(**sample)
+                out = self.model(data_processor=self.data_processor, **sample)
         else:
-            out = self.model(**sample)
+            out = self.model(data_processor=self.data_processor, **sample)
         
         if self.epoch == 0 and idx == 0 and self.verbose:
             print(f"Raw outputs of shape {out.shape}")
@@ -482,7 +483,7 @@ class Trainer:
 
         self.n_samples += sample["y"].size(0)
 
-        out = self.model(**sample)
+        out = self.model(data_processor=self.data_processor, **sample)
 
         if self.data_processor is not None:
             out, sample = self.data_processor.postprocess(out, sample)
