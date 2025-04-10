@@ -22,7 +22,10 @@ from neuralop.data.datasets import load_darcy_flow_small
 from neuralop.utils import count_model_params
 from neuralop import LpLoss, H1Loss
 
-device = 'cpu'
+device_name = "cpu"
+if torch.cuda.is_available():
+    device_name = "cuda:0"
+device = torch.device(device_name)
 
 ## Create a folder every time saving the figures
 import os

@@ -1,6 +1,11 @@
 import torch
 import torch.nn as nn
 import numpy as np
+import scipy
+import cupy as cp
+import cupyx as cpx
+from cupyx.scipy.sparse.linalg import gmres as cpx_gmres
+from scipy.sparse.linalg import gmres
 
 
 class ConstraintFunction(torch.autograd.Function):
@@ -21,6 +26,10 @@ class ConstraintFunction(torch.autograd.Function):
         input_dim = y.shape[1]
         output_dim = A.shape[0]
 
+        if A.device.type != y.device.type:
+            A = A.to(y.device.type)
+            b = b.to(y.device.type)
+
         # Create the block matrix
         Id = torch.eye(input_dim, device=y.device, dtype=y.dtype)  # 2I
         if A.numel() == 0:
@@ -30,22 +39,38 @@ class ConstraintFunction(torch.autograd.Function):
             top_block = torch.cat([Id, 1/2*A.T], dim=1)
             bottom_block = torch.cat([1/2*A, zero_block], dim=1)
             block_matrix = torch.cat([top_block, bottom_block], dim=0)
-            #print(torch.linalg.cond(block_matrix))
+
         # Create the right-hand side vector
         rhs = torch.cat([y, 1/2*b], dim=1)  # Shape: (batch_size, input_dim + output_dim)
-
+        """
         # Solve for each batch
         y_star_v_star = []
         for i in range(batch_size):
             solution = torch.linalg.solve(block_matrix, rhs[i])
             y_star_v_star.append(solution)
-
+        """
+        """
+        block_matrix_scipy = scipy.sparse.coo_matrix(block_matrix.cpu().numpy())
+        y_star_v_star = []
+        for i in range(batch_size):
+            rhs_i = rhs[i].cpu().numpy()
+            solution, info = gmres(block_matrix_scipy, rhs_i)
+            y_star_v_star.append(torch.tensor(solution).to(block_matrix.device))
         y_star_v_star = torch.stack(y_star_v_star, dim=0)
+        """
+        
+        block_matrix_gpu = cpx.scipy.sparse.coo_matrix(cp.asarray(block_matrix))  # Convert to COO format for CuPy
+        y_star_v_star = []
+        for i in range(batch_size):
+            rhs_i = cp.asarray(rhs[i]) # Convert right-hand side to NumPy array for GMRES
+            solution, info = cpx_gmres(block_matrix_gpu, rhs_i)
+            y_star_v_star.append(cp.asarray(solution))  # Move solution back to GPU
+        y_star_v_star = cp.stack(y_star_v_star).get()
+        y_star_v_star = torch.tensor(y_star_v_star).to(block_matrix.device)
 
         # Extract y_star and v_star
         y_star = y_star_v_star[:, :input_dim]
         v_star = y_star_v_star[:, input_dim:]
-
         ctx.save_for_backward(A, y_star, v_star, block_matrix)
         return y_star
 
@@ -84,6 +109,20 @@ class ConstraintLayer(nn.Module):
 
     def forward(self, y):
         return ConstraintFunction.apply(y, self.A, self.b)
+
+
+class NonlinearConstraintFunction(torch.autograd.Function):
+    @staticmethod
+    def forward(ctx, y, E, I):
+        """
+        Solve the nonlinear optimization problem.
+        ------
+        Parameters:
+            y (torch.Tensor): Input tensor `y` of shape (batch_size, input_dim).
+            E: Set of functions for optimum y that is constrained to be equal to zero.
+            I: Set of functions for optimum y that is constrained to be greather than or equal to zero.
+        """
+        pass
 
 
 def generate_bc0(batch_size, channels, height, width):

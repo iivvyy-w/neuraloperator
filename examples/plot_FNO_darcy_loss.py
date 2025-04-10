@@ -8,7 +8,14 @@ from neuralop.data.datasets import load_darcy_flow_small
 from neuralop.utils import count_model_params
 from neuralop import LpLoss, H1Loss
 
-device = 'cpu'
+
+device_name = "cpu"
+#"""
+if torch.cuda.is_available():
+    device_name = "cuda:0"
+#"""
+device = torch.device(device_name)
+print(device)
 
 ## Create a folder every time saving the figures
 import os
@@ -89,7 +96,7 @@ def training(model, lr=8e-3, mask=False):
     print(f'\n * Test: {eval_losses}')
     sys.stdout.flush()
 
-    trainer = Trainer(model=model, n_epochs=20,
+    trainer = Trainer(model=model, n_epochs=500,
                       device=device,
                       data_processor=data_processor,
                       wandb_log=False,
@@ -108,11 +115,11 @@ def training(model, lr=8e-3, mask=False):
     return train_errs
 
 
-train_errs_un = training(model_unconstraint)
+#train_errs_un = training(model_unconstraint)
 train_errs_con = training(model_constraint)
 
 fig, ax = plt.subplots()
-ax.plot(train_errs_un, label="FNO")
+#ax.plot(train_errs_un, label="FNO")
 ax.plot(train_errs_con, label="FNO-CON")
 ax.set_yscale('log')
 ax.set_xlabel("Epoch")
