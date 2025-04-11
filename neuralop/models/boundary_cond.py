@@ -5,10 +5,20 @@ import scipy
 import cupy as cp
 import cupyx as cpx
 from cupyx.scipy.sparse.linalg import gmres as cpx_gmres
-from scipy.sparse.linalg import gmres
 
 
 class ConstraintFunction(torch.autograd.Function):
+    @staticmethod
+    def solve(batch_size, block, rhs, device):
+        y_star_v_star = []
+        for i in range(batch_size):
+            rhs_i = cp.asarray(rhs[i])
+            solution, info = cpx_gmres(block, rhs_i)
+            y_star_v_star.append(cp.asarray(solution))
+        y_star_v_star = cp.stack(y_star_v_star).get()
+        y_star_v_star = torch.tensor(y_star_v_star).to(device)
+        return y_star_v_star
+
     @staticmethod
     def forward(ctx, y, A, b):
         """
@@ -60,6 +70,7 @@ class ConstraintFunction(torch.autograd.Function):
         """
         
         block_matrix_gpu = cpx.scipy.sparse.coo_matrix(cp.asarray(block_matrix))  # Convert to COO format for CuPy
+        y_star_v_star = ConstraintFunction.solve(batch_size, block_matrix_gpu, rhs, device=block_matrix.device)
         y_star_v_star = []
         for i in range(batch_size):
             rhs_i = cp.asarray(rhs[i]) # Convert right-hand side to NumPy array for GMRES
