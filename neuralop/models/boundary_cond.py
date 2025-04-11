@@ -71,6 +71,7 @@ class ConstraintFunction(torch.autograd.Function):
         
         block_matrix_gpu = cpx.scipy.sparse.coo_matrix(cp.asarray(block_matrix))  # Convert to COO format for CuPy
         y_star_v_star = ConstraintFunction.solve(batch_size, block_matrix_gpu, rhs, device=block_matrix.device)
+        """
         y_star_v_star = []
         for i in range(batch_size):
             rhs_i = cp.asarray(rhs[i]) # Convert right-hand side to NumPy array for GMRES
@@ -78,7 +79,7 @@ class ConstraintFunction(torch.autograd.Function):
             y_star_v_star.append(cp.asarray(solution))  # Move solution back to GPU
         y_star_v_star = cp.stack(y_star_v_star).get()
         y_star_v_star = torch.tensor(y_star_v_star).to(block_matrix.device)
-
+        """
         # Extract y_star and v_star
         y_star = y_star_v_star[:, :input_dim]
         v_star = y_star_v_star[:, input_dim:]
