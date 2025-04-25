@@ -27,10 +27,12 @@ def average_error(test_samples, data_processor, model, y_0=False):
     N = len(test_samples)
     for index in range(N):
         data = test_samples[index]
-        data = data_processor.preprocess(data, batched=False)
+        data = data_processor.preprocess(data, batched=True)
 
         x = data['x']
         y = data['y']
+        if y.dim() != 4:
+            y = y.unsqueeze(0)
         out = model(x.unsqueeze(0), data_processor=data_processor)
         if y_0:
             boundary_value = data_processor.out_normalizer.transform(0)

@@ -23,8 +23,10 @@ from neuralop.utils import count_model_params
 from neuralop import LpLoss, H1Loss
 
 device_name = "cpu"
+
 if torch.cuda.is_available():
     device_name = "cuda:0"
+
 device = torch.device(device_name)
 
 ## Create a folder every time saving the figures
@@ -32,6 +34,7 @@ import os
 import datetime
 import numpy as np
 from neuralop.models.errors import average_error
+from neuralop.models.plot_function import plot_example_result
 timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 folder_name = f"FNO_DarcyFlow_{timestamp}"
 os.makedirs(folder_name, exist_ok=True)
@@ -50,7 +53,7 @@ data_processor = data_processor.to(device)
 # We create a simple FNO model
 
 # Record the parameters used to alter the parameters in the following training and testing
-constraint = True  # whether to apply constraint on the FNO
+constraint = False  # whether to apply constraint on the FNO
 constraint_type = 'zero'  # what kind of constraint to apply
 constraint_which = None  # on which side of the boundary to apply constraint
 constraint_g = None  # What is g(x) on the neumann problem
@@ -140,7 +143,8 @@ trainer.train(train_loader=train_loader,
 # Again note that in this example, we train on a very small resolution for
 # a very small number of epochs.
 # In practice, we would train at a larger resolution, on many more samples.
-
+plot_example_result(test_loaders, 16, data_processor, model, folder_name)
+"""
 test_samples = test_loaders[16].dataset
 
 fig = plt.figure(figsize=(7, 7))
@@ -153,7 +157,10 @@ for index in range(3):
     y = data['y']
     # Model prediction
     out = model(x.unsqueeze(0), data_processor=data_processor)
-
+    if device_name == 'cuda:0':
+        x = x.to('cpu')
+        y = y.to('cpu')
+        out = out.to('cpu')
     ax = fig.add_subplot(3, 3, index*3 + 1)
     ax.imshow(x[0], cmap='gray')
     if index == 0: 
@@ -181,6 +188,7 @@ fig.show()
 fig.savefig(os.path.join(folder_name, "16.png"))
 
 error16, total_error16 = average_error(test_samples, data_processor, model, y_0=y_16)
+
 # %%
 # .. zero_shot :
 # Zero-shot super-evaluation
@@ -203,6 +211,10 @@ for index in range(3):
     out = model(x.unsqueeze(0), data_processor=data_processor)
 
     ax = fig.add_subplot(3, 3, index*3 + 1)
+    if device_name == 'cuda:0':
+        x = x.to('cpu')
+        y = y.to('cpu')
+        out = out.to('cpu')
     ax.imshow(x[0], cmap='gray')
     if index == 0: 
         ax.set_title('Input x')
@@ -240,3 +252,4 @@ error32, total_error32 = average_error(test_samples, data_processor, model, y_0=
 # However, as you can see, these predictions are noisier than we would expect for a model evaluated 
 # at the same resolution at which it was trained. Leveraging the FNO's discretization-invariance, there
 # are other ways to scale the outputs of the FNO to train a true super-resolution capability. 
+"""

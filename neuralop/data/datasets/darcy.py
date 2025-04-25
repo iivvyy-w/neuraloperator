@@ -142,7 +142,7 @@ def load_darcy_flow_small(n_train,
                            n_tests=n_tests,
                            batch_size=batch_size,
                            test_batch_sizes=test_batch_sizes,
-                           train_resolution=32,  # Changed
+                           train_resolution=128,  # Changed
                            test_resolutions=test_resolutions,
                            encode_input=encode_input,
                            encode_output=encode_output,

@@ -5,6 +5,7 @@ import scipy
 import cupy as cp
 import cupyx as cpx
 from cupyx.scipy.sparse.linalg import gmres as cpx_gmres
+from cupyx.scipy.sparse.linalg import minres as cpx_minres
 
 
 class ConstraintFunction(torch.autograd.Function):
@@ -13,7 +14,7 @@ class ConstraintFunction(torch.autograd.Function):
         y_star_v_star = []
         for i in range(batch_size):
             rhs_i = cp.asarray(rhs[i])
-            solution, info = cpx_gmres(block, rhs_i)
+            solution, info = cpx_minres(block, rhs_i)
             y_star_v_star.append(cp.asarray(solution))
         y_star_v_star = cp.stack(y_star_v_star).get()
         y_star_v_star = torch.tensor(y_star_v_star).to(device)
@@ -68,18 +69,18 @@ class ConstraintFunction(torch.autograd.Function):
             y_star_v_star.append(torch.tensor(solution).to(block_matrix.device))
         y_star_v_star = torch.stack(y_star_v_star, dim=0)
         """
-        
-        block_matrix_gpu = cpx.scipy.sparse.coo_matrix(cp.asarray(block_matrix))  # Convert to COO format for CuPy
-        y_star_v_star = ConstraintFunction.solve(batch_size, block_matrix_gpu, rhs, device=block_matrix.device)
-        """
-        y_star_v_star = []
-        for i in range(batch_size):
-            rhs_i = cp.asarray(rhs[i]) # Convert right-hand side to NumPy array for GMRES
-            solution, info = cpx_gmres(block_matrix_gpu, rhs_i)
-            y_star_v_star.append(cp.asarray(solution))  # Move solution back to GPU
-        y_star_v_star = cp.stack(y_star_v_star).get()
-        y_star_v_star = torch.tensor(y_star_v_star).to(block_matrix.device)
-        """
+        if y.device.type == 'cpu':
+            y_star_v_star = []
+            for i in range(batch_size):
+                solution = torch.linalg.solve(block_matrix, rhs[i])
+                y_star_v_star.append(solution)
+            y_star_v_star = torch.stack(y_star_v_star, dim=0)
+        elif y.device.type == 'cuda:0' or y.device.type == 'cuda':
+            block_matrix_gpu = cpx.scipy.sparse.coo_matrix(cp.asarray(block_matrix))  # Convert to COO format for CuPy
+            y_star_v_star = ConstraintFunction.solve(batch_size, block_matrix_gpu, rhs, device=y.device)
+        else:
+            raise TypeError(f"The device is {y.device.type}")
+
         # Extract y_star and v_star
         y_star = y_star_v_star[:, :input_dim]
         v_star = y_star_v_star[:, input_dim:]
@@ -92,13 +93,23 @@ class ConstraintFunction(torch.autograd.Function):
         batch_size, input_dim = y_star.shape
         output_dim = A.shape[0]
 
+        if grad_output.device.type != y_star.device.type:
+            grad_output = grad_output.to(y_star.device.type)
+
         if A.numel() == 0:
             return grad_output, None, None
         
         zero_block = torch.zeros((batch_size, output_dim), device=y_star.device, dtype=y_star.dtype)
         rhs_grad = torch.cat([grad_output, zero_block], dim=1)  # Shape: (batch_size, input_dim + output_dim)
-        grad_solution = torch.linalg.solve(block_matrix.unsqueeze(0).expand(batch_size, -1, -1), rhs_grad.unsqueeze(-1))
-        grad_y = grad_solution[:, :input_dim, 0]
+        if y_star.device.type == 'cpu':
+            grad_solution = torch.linalg.solve(block_matrix.unsqueeze(0).expand(batch_size, -1, -1), rhs_grad.unsqueeze(-1))
+            grad_y = grad_solution[:, :input_dim, 0]
+        elif y_star.device.type == 'cuda:0' or y_star.device.type == 'cuda':
+            block_matrix_gpu = cpx.scipy.sparse.coo_matrix(cp.asarray(block_matrix))  # Convert to COO format for CuPy
+            grad_solution = ConstraintFunction.solve(batch_size, block_matrix_gpu, rhs_grad, device=block_matrix.device)
+            grad_y = grad_solution[:, :input_dim]
+        else:
+            raise TypeError(f"The device is {y_star.device.type}")
 
         return grad_y, None, None
 
@@ -123,17 +134,23 @@ class ConstraintLayer(nn.Module):
         return ConstraintFunction.apply(y, self.A, self.b)
 
 
-class NonlinearConstraintFunction(torch.autograd.Function):
+class InequalityConstraintFunction(torch.autograd.Function):
     @staticmethod
-    def forward(ctx, y, E, I):
+    def forward(ctx, y, E, I, max_iter=20, tol=1e-6):
         """
-        Solve the nonlinear optimization problem.
+        Solve the linear subproblem of the nonlinear optimization problem.
         ------
         Parameters:
             y (torch.Tensor): Input tensor `y` of shape (batch_size, input_dim).
-            E: Set of functions for optimum y that is constrained to be equal to zero.
-            I: Set of functions for optimum y that is constrained to be greather than or equal to zero.
+            E: list of linearized functions for optimum y that is constrained to be equal to zero.
+            I: list of linearized functions for optimum y that is constrained to be greather than or equal to zero.
+            max_iter: maximum number of iterations
+            tol: tolerance
         """
+        # Solve the matrix system
+        batch_size, input_dim = y.shape
+        device = y.device
+        
         pass
 
 
