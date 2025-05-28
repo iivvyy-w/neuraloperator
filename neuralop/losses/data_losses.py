@@ -167,7 +167,8 @@ class H1Loss(object):
     H1Loss provides the H1 Sobolev norm between
     two d-dimensional discretized functions
     """
-    def __init__(self, d=1, L=2*math.pi, reduce_dims=0, reductions='sum', fix_x_bnd=False, fix_y_bnd=False, fix_z_bnd=False, mask=False):
+    def __init__(self, d=1, L=2*math.pi, reduce_dims=0, reductions='sum', fix_x_bnd=False, fix_y_bnd=False, fix_z_bnd=False, 
+                 mask=False, soft=False, soft_weight=0.01):
         """
 
         Parameters
@@ -221,6 +222,8 @@ class H1Loss(object):
 
         #if mask is true, ignore the boundary error 
         self.mask = mask
+        self.soft = soft
+        self.soft_weight = soft_weight
     
     @property
     def name(self):
@@ -389,7 +392,7 @@ class H1Loss(object):
 
         diff = torch.norm(dict_x[0] - dict_y[0], p=2, dim=-1, keepdim=False)**2
         ynorm = torch.norm(dict_y[0], p=2, dim=-1, keepdim=False)**2
-
+            
         for j in range(1, self.d + 1):
             diff += torch.norm(dict_x[j] - dict_y[j], p=2, dim=-1, keepdim=False)**2
             ynorm += torch.norm(dict_y[j], p=2, dim=-1, keepdim=False)**2
@@ -399,6 +402,18 @@ class H1Loss(object):
         if self.reduce_dims is not None:
             diff = self.reduce_all(diff).squeeze()
             
+        if self.soft:
+            x_boundary = torch.cat([x[:, :, 0, :],
+                                    x[:, :, -1, :],
+                                    x[:, :, :, 0],
+                                    x[:, :, :, -1]], dim=-1)
+
+            boundary_penalty = torch.norm(x_boundary, p=2, dim=-1)
+
+            if self.reduce_dims is not None:
+                boundary_penalty = self.reduce_all(boundary_penalty).squeeze()
+
+            diff += self.soft_weight * boundary_penalty
         return diff
 
     def __call__(self, y_pred, y, h=None, **kwargs):

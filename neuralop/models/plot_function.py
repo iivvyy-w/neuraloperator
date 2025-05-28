@@ -65,7 +65,7 @@ def plot_example_result(test_loaders, resolution, data_processor, model, folder_
             ax.set_title('Model prediction')
         plt.xticks([], [])
         plt.yticks([], [])
-
+    
     fig.suptitle(f'Inputs, ground-truth output and prediction ({resolution}x{resolution}).', y=0.98)
     plt.tight_layout()
     fig.show()
